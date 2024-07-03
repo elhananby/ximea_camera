@@ -180,6 +180,7 @@ pub fn connect_to_socket(port: &str, socket_type: zmq::SocketType) -> zmq::Socke
     };
     socket
 }
+
 pub fn parse_message(message: &str) -> MessageType {
     if message.trim().is_empty() {
         return MessageType::Empty;

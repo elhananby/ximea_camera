@@ -4,6 +4,7 @@ use crossbeam::channel;
 use image::{ImageBuffer, Luma};
 
 use std::sync::Arc;
+use std::thread;
 
 // Local module declarations
 mod frames;
@@ -13,12 +14,12 @@ mod structs;
 // Imports from local modules
 use frames::frame_handler;
 use helpers::*;
-
 use structs::*;
+
 fn main() -> Result<(), i32> {
     // set logging level
     if std::env::var_os("RUST_LOG").is_none() {
-        std::env::set_var("RUST_LOG", "info");
+        std::env::set_var("RUST_LOG", "debug");
     }
 
     // setup logger
@@ -53,12 +54,10 @@ fn main() -> Result<(), i32> {
     // Send ready message to ZMQ over REQ
     log::info!("Sending ready message to ZMQ PUB");
     handshake.send("Hello", 0).unwrap();
-    let message = handshake.recv_string(0);
-    println!("Received message: {:?}", message);
 
     match handshake.recv_string(0) {
-        Ok(Ok(msg)) if &msg == "Welcome " => {
-            log::info!("Handshake successfull");
+        Ok(Ok(msg)) if &msg == "Welcome" => {
+            log::info!("Handshake successful");
         }
         Ok(Err(e)) => {
             log::error!("Failed to receive message: {:?}", e);
@@ -72,64 +71,47 @@ fn main() -> Result<(), i32> {
         }
     }
 
+    // Connect to ZMQ subscriber
     let subscriber = connect_to_socket(&args.sub_port, zmq::SUB);
 
-    // Wait for ready message from socket
-    log::info!("Waiting for ready message from ZMQ PUB");
-
-    // Block until first message, which should be the save folder
-    // subscriber.recv(&mut msg, 0).unwrap();
+    // Set save folder
     let save_folder = args.save_folder.clone();
 
     // spawn writer thread
     let (sender, receiver) = channel::unbounded::<(Arc<ImageData>, MessageType)>();
-    let frame_handler =
-        std::thread::spawn(move || frame_handler(receiver, n_before, n_after, save_folder));
+    let frame_handler_thread =
+        thread::spawn(move || frame_handler(receiver, n_before, n_after, save_folder));
+
+    // spawn subscriber thread
+    let (msg_sender, msg_receiver) = channel::unbounded::<String>();
+    let subscriber_thread = thread::spawn(move || subscribe_to_messages(subscriber, msg_sender));
 
     // create image buffer
     let buffer = cam.start_acquisition()?;
-    //let mut image_data: Arc<ImageData> = Arc::new(ImageData::default());
 
     // start acquisition
     log::info!("Starting acquisition");
     loop {
-        // receive message
-        let msg = match subscriber.recv_string(zmq::DONTWAIT) {
-            Ok(Ok(full_message)) => {
-                let parts: Vec<&str> = full_message.splitn(2, ' ').collect();
-                if parts.len() == 2 {
-                    let topic = parts[0];
-                    let message = parts[1];
-                    log::debug!("Received message: {:?} {:?}", topic, message);
-                    Some(message.to_string())
-                } else {
-                    log::warn!("Received message with no topic: {:?}", full_message);
-                    Some(full_message)
-                }
-            }
-            Ok(Err(_)) => {
-                log::debug!("Failed to receive message");
-                None
-            }
-            Err(e) => {
-                log::debug!("Failed to receive message: {:?}", e);
-                None
-            }
+        // Check if there's a message from the subscriber thread
+        let msg = match msg_receiver.try_recv() {
+            Ok(message) => Some(message),
+            Err(_) => None,
         };
 
         // parse message
         let mut parsed_message = MessageType::Empty;
         if let Some(message) = msg {
             parsed_message = parse_message(&message);
+            log::debug!("Parsed message: {:?}", parsed_message);
+
+            // check if got "kill" in parsed_message
+            if let MessageType::Text(data) = &parsed_message {
+                if data == "kill" {
+                    break;
+                }
+            }
         } else {
             log::debug!("No valid message received.");
-        }
-
-        // check if got "kill" in parsed_message
-        if let MessageType::Text(data) = &parsed_message {
-            if data == "kill" {
-                break;
-            }
         }
 
         // Get frame from camera
@@ -149,7 +131,7 @@ fn main() -> Result<(), i32> {
         // send frame with the incoming parsed message
         match sender.send((image_data, parsed_message)) {
             Ok(_) => {
-                log::debug!("Sent frame to frame handler");
+                log::trace!("Sent frame to frame handler");
             }
             Err(_e) => {
                 log::warn!("Failed to send frame to frame handler");
@@ -173,8 +155,54 @@ fn main() -> Result<(), i32> {
         }
     }
 
+    // send
+
     // stop frame handler
-    frame_handler.join().unwrap();
+    frame_handler_thread.join().unwrap();
+    subscriber_thread.join().unwrap();
 
     Ok(())
+}
+
+fn subscribe_to_messages(subscriber: zmq::Socket, msg_sender: channel::Sender<String>) {
+    loop {
+        let msg = match subscriber.recv_string(zmq::DONTWAIT) {
+            Ok(result) => match result {
+                Ok(full_message) => {
+                    let parts: Vec<&str> = full_message.splitn(2, ' ').collect();
+                    if parts.len() == 2 {
+                        let topic = parts[0];
+                        let message = parts[1];
+                        log::info!("Received message: {:?} {:?}", topic, message);
+                        Some(message.to_string())
+                    } else {
+                        log::warn!("Received message with no topic: {:?}", full_message);
+                        Some(full_message)
+                    }
+                }
+                Err(e) => {
+                    log::trace!("Failed to parse message: {:?}", e);
+                    None
+                }
+            },
+            Err(e) => {
+                log::trace!("Failed to receive message: {:?}", e);
+                None
+            }
+        };
+
+        if let Some(message) = msg {
+            if let Err(e) = msg_sender.send(message.clone()) {
+                log::error!("Failed to send message to main thread: {:?}", e);
+                break;
+            }
+
+            if message == "kill" {
+                log::info!("Kill message received, stopping subscriber thread.");
+                break;
+            }
+        }
+        
+        std::thread::sleep(std::time::Duration::from_millis(1)); // Adjusted to check every 1ms
+    }
 }
