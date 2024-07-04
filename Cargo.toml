@@ -5,9 +5,7 @@ edition = "2021"
 authors = ["Elhanan Buchsbaum"]
 
 [dependencies]
-xiapi-sys = { git = "https://github.com/Ximea-GmbH/xiapi-sys.git" }
 xiapi = { git = "https://github.com/elhananby/xiapi.git" }
-tokio = { version = "1.37.0", features = ["full"] }
 crossbeam = "0.8"
 crossbeam-channel = "0.5"
 image = "0.24.8"
@@ -17,11 +15,8 @@ env_logger = "0.11.3"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 zmq = "0.10.0"
-ctrlc = "3.4"
-chrono = "0.4.37"
-rayon = "1.10.0"
-ffmpeg-next = "7.0.2"
 anyhow = "1.0.86"
+rand = "0.8.5"
 
 [[example]]
 name = "set_lens_mode"

@@ -108,7 +108,6 @@ fn adjust_exposure(exposure: f32, fps: &f32) -> f32 {
     }
 }
 
-
 fn set_resolution(
     cam: &mut xiapi::Camera,
     width: u32,
