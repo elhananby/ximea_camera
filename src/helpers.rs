@@ -1,6 +1,4 @@
 // Standard library imports
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // Current crate and supermodule imports
@@ -82,6 +80,7 @@ pub fn set_camera_parameters(cam: &mut xiapi::Camera, args: &Args) -> Result<(),
     Ok(())
 }
 
+#[allow(dead_code)]
 fn get_offset_for_resolution(
     max_resolution: (u32, u32),
     width: u32,
@@ -109,35 +108,6 @@ fn adjust_exposure(exposure: f32, fps: &f32) -> f32 {
     }
 }
 
-fn set_lens_mode_with_retry(cam: &mut xiapi::Camera, aperture: f32) -> Result<(), i32> {
-    let mut max_retries = 5;
-    let delay = std::time::Duration::from_secs(2);
-
-    cam.set_lens_mode(xiapi::XI_SWITCH::XI_ON)?;
-    log::info!("Lens mode set to XI_ON");
-
-    loop {
-        // match
-        match cam.set_lens_aperture_value(aperture) {
-            Ok(_) => {
-                log::info!("Lens aperture value set to 5.2");
-                return Ok(()); // return Ok if the aperture is set successfully
-            }
-            Err(e) => {
-                log::debug!("Error setting lens aperture value: {}, retrying.", e);
-
-                max_retries -= 1;
-                if max_retries == 0 {
-                    log::error!("Max retries reached, exiting.");
-                    return Err(e); // return Err if the max retries are reached
-                }
-
-                std::thread::sleep(delay);
-                continue;
-            }
-        }
-    }
-}
 
 fn set_resolution(
     cam: &mut xiapi::Camera,
@@ -198,12 +168,4 @@ pub fn parse_message(message: &str) -> MessageType {
             }
         }
     }
-}
-
-/// Ctrl-C handling
-pub fn setup_ctrlc_handler(running: Arc<AtomicBool>) {
-    ctrlc::set_handler(move || {
-        running.store(false, Ordering::SeqCst);
-    })
-    .expect("Error setting Ctrl-C handler");
 }
