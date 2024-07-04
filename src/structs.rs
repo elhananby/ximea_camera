@@ -4,7 +4,7 @@ use image::{ImageBuffer, Luma};
 use serde::{Deserialize, Serialize};
 use serde_json::Error as SerdeError;
 use std::collections::VecDeque;
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 
 // Standard library imports, alphabetized
 use std::sync::Arc;
@@ -102,11 +102,6 @@ pub enum MessageType {
     InvalidJson(String, SerdeError), // New variant to include parsing error details
 }
 
-#[allow(dead_code)]
-pub enum Packet {
-    Images(Vec<Arc<ImageData>>),
-    Kill,
-}
 
 pub struct FramesPacket {
     pub images: VecDeque<Arc<ImageData>>,
