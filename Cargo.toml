@@ -9,6 +9,7 @@ xiapi-sys = { git = "https://github.com/Ximea-GmbH/xiapi-sys.git" }
 xiapi = { git = "https://github.com/elhananby/xiapi.git" }
 tokio = { version = "1.37.0", features = ["full"] }
 crossbeam = "0.8"
+crossbeam-channel = "0.5"
 image = "0.24.8"
 clap = { version = "4.5.4", features = ["derive"] }
 log = "0.4.21"

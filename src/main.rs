@@ -19,7 +19,7 @@ use structs::*;
 fn main() -> Result<(), i32> {
     // set logging level
     if std::env::var_os("RUST_LOG").is_none() {
-        std::env::set_var("RUST_LOG", "debug");
+        std::env::set_var("RUST_LOG", "info");
     }
 
     // setup logger
@@ -202,7 +202,7 @@ fn subscribe_to_messages(subscriber: zmq::Socket, msg_sender: channel::Sender<St
                 break;
             }
         }
-        
+
         std::thread::sleep(std::time::Duration::from_millis(1)); // Adjusted to check every 1ms
     }
 }
