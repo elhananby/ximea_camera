@@ -1,5 +1,8 @@
 use log::{info, warn};
+use zmq;
 use zmq::{Context, Socket, SocketType};
+
+use super::structs::{MessageType, KalmanEstimateRow};
 
 pub struct Publisher {
     pub_socket: Socket,
@@ -85,5 +88,37 @@ impl Subscriber {
         let msg = self.sub_socket.recv_string(0).unwrap().unwrap();
         info!("Received message: {}", msg);
         msg
+    }
+}
+
+
+pub fn connect_to_socket(port: &str, socket_type: zmq::SocketType) -> zmq::Socket {
+    let context = zmq::Context::new();
+    let socket = context.socket(socket_type).unwrap();
+    socket
+        .connect(format!("tcp://127.0.0.1:{}", port).as_str())
+        .unwrap();
+    if socket_type == zmq::SUB {
+        socket.set_subscribe(b"trigger").unwrap();
+    };
+    socket
+}
+
+pub fn parse_message(message: &str) -> MessageType {
+    if message.trim().is_empty() {
+        return MessageType::Empty;
+    }
+
+    match serde_json::from_str::<KalmanEstimateRow>(message) {
+        Ok(data) => MessageType::JsonData(data),
+        Err(e) => {
+            if e.is_data() {
+                // If the error is due to data format issues, return InvalidJson
+                MessageType::InvalidJson(message.to_string(), e)
+            } else {
+                // For other types of errors, treat it as a plain text message
+                MessageType::Text(message.to_string())
+            }
+        }
     }
 }
