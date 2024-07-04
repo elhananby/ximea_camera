@@ -21,6 +21,7 @@ ctrlc = "3.4"
 chrono = "0.4.37"
 rayon = "1.10.0"
 ffmpeg-next = "7.0.2"
+anyhow = "1.0.86"
 
 [[example]]
 name = "set_lens_mode"
