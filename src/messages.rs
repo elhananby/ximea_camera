@@ -1,5 +1,5 @@
 use log::{info, warn};
-use zmq;
+
 use zmq::{Context, Socket, SocketType};
 
 use super::structs::{MessageType, KalmanEstimateRow};
