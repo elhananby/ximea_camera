@@ -18,6 +18,6 @@ zmq = "0.10.0"
 anyhow = "1.0.86"
 rand = "0.8.5"
 
-[[example]]
-name = "set_lens_mode"
-path = "examples/set_lens_mode.rs"
+# [[example]]
+# name = "set_lens_mode"
+# path = "examples/set_lens_mode.rs"
