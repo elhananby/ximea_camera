@@ -8,13 +8,17 @@ use std::thread;
 
 // Local module declarations
 mod frames;
-mod helpers;
 mod structs;
+mod cli;
+mod camera;
+mod messages;
 
 // Imports from local modules
 use frames::frame_handler;
-use helpers::*;
 use structs::*;
+use cli::Args;
+use camera::*;
+use messages::{connect_to_socket, parse_message};
 
 fn main() -> Result<(), i32> {
     // set logging level
