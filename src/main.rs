@@ -7,18 +7,18 @@ use std::sync::Arc;
 use std::thread;
 
 // Local module declarations
-mod frames;
-mod structs;
-mod cli;
 mod camera;
+mod cli;
+mod frames;
 mod messages;
+mod structs;
 
 // Imports from local modules
-use frames::frame_handler;
-use structs::*;
-use cli::Args;
 use camera::*;
-use messages::{connect_to_socket, parse_message};
+use cli::Args;
+use frames::frame_handler;
+use messages::{connect_to_socket, parse_message, subscribe_to_messages};
+use structs::*;
 
 fn main() -> Result<(), i32> {
     // set logging level
@@ -166,47 +166,4 @@ fn main() -> Result<(), i32> {
     subscriber_thread.join().unwrap();
 
     Ok(())
-}
-
-fn subscribe_to_messages(subscriber: zmq::Socket, msg_sender: channel::Sender<String>) {
-    loop {
-        let msg = match subscriber.recv_string(zmq::DONTWAIT) {
-            Ok(result) => match result {
-                Ok(full_message) => {
-                    let parts: Vec<&str> = full_message.splitn(2, ' ').collect();
-                    if parts.len() == 2 {
-                        let topic = parts[0];
-                        let message = parts[1];
-                        log::info!("Received message: {:?} {:?}", topic, message);
-                        Some(message.to_string())
-                    } else {
-                        log::warn!("Received message with no topic: {:?}", full_message);
-                        Some(full_message)
-                    }
-                }
-                Err(e) => {
-                    log::trace!("Failed to parse message: {:?}", e);
-                    None
-                }
-            },
-            Err(e) => {
-                log::trace!("Failed to receive message: {:?}", e);
-                None
-            }
-        };
-
-        if let Some(message) = msg {
-            if let Err(e) = msg_sender.send(message.clone()) {
-                log::error!("Failed to send message to main thread: {:?}", e);
-                break;
-            }
-
-            if message == "kill" {
-                log::info!("Kill message received, stopping subscriber thread.");
-                break;
-            }
-        }
-
-        std::thread::sleep(std::time::Duration::from_millis(1)); // Adjusted to check every 1ms
-    }
 }

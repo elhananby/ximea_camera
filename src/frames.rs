@@ -1,21 +1,33 @@
 // Standard library imports
-use std::{
-    collections::VecDeque, fs::{create_dir_all, OpenOptions}, io::Write, path::{Path, PathBuf}, process::{Command, Stdio}, sync::Arc, thread, time::Instant
-};
-use crossbeam::channel::{Receiver, unbounded};
-use anyhow::{Result, Context};
 use crate::{
-    structs::{ImageData, MessageType, FramesPacket},
+    structs::{FramesPacket, ImageData, MessageType},
     KalmanEstimateRow,
+};
+use anyhow::{Context, Result};
+use crossbeam::channel::{unbounded, Receiver};
+use std::{
+    collections::VecDeque,
+    fs::{create_dir_all, OpenOptions},
+    io::Write,
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
+    sync::Arc,
+    thread,
+    time::Instant,
 };
 
 fn save_video_metadata(images: &VecDeque<Arc<ImageData>>, save_path: &Path) -> Result<()> {
-    log::debug!("Saving metadata to disk");
+    log::info!("Saving metadata to disk");
+
+    let mut save_path_str = save_path.to_string_lossy().to_string();
+    save_path_str.push_str(".csv");
+
+    let new_path: &Path = Path::new(&save_path_str);
 
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
-        .open(save_path.join("metadata.csv"))
+        .open(new_path)
         .context("Failed to open metadata file")?;
 
     writeln!(file, "nframe,acq_nframe,timestamp_raw,exposure_time")?;
@@ -37,12 +49,13 @@ fn video_writer(rx: Receiver<FramesPacket>) -> Result<()> {
             log::info!("Received kill signal in video writer");
             break;
         }
-
         save_video_metadata(&packet.images, &packet.save_path)?;
 
         let first_frame = packet.images.front().context("No frames provided")?;
         let (width, height) = (first_frame.width, first_frame.height);
-        let save_path_str = packet.save_path.with_extension("mp4")
+        let save_path_str = packet
+            .save_path
+            .with_extension("mp4")
             .to_str()
             .context("Failed to convert path to string")?
             .to_string();
@@ -51,30 +64,51 @@ fn video_writer(rx: Receiver<FramesPacket>) -> Result<()> {
 
         let mut ffmpeg_command = Command::new("ffmpeg")
             .args([
-                "-f", "rawvideo",
-                "-pixel_format", "gray",
-                "-video_size", &format!("{}x{}", width, height),
-                "-framerate", "25",
-                "-i", "-",
-                "-vf", "format=gray",
-                "-vcodec", "h264_nvenc",
-                "-preset", "p7",
-                "-tune", "hq",
-                "-rc", "vbr_hq",
-                "-qmin", "1",
-                "-qmax", "25",
-                "-b:v", "5M",
-                "-maxrate", "10M",
-                "-bufsize", "20M",
-                "-profile:v", "high",
+                "-f",
+                "rawvideo",
+                "-pixel_format",
+                "gray",
+                "-video_size",
+                &format!("{}x{}", width, height),
+                "-framerate",
+                "25",
+                "-i",
+                "-",
+                "-vf",
+                "format=gray",
+                "-vcodec",
+                "h264_nvenc",
+                "-preset",
+                "p7",
+                "-tune",
+                "hq",
+                "-rc",
+                "vbr_hq",
+                "-qmin",
+                "1",
+                "-qmax",
+                "25",
+                "-b:v",
+                "5M",
+                "-maxrate",
+                "10M",
+                "-bufsize",
+                "20M",
+                "-profile:v",
+                "high",
                 &save_path_str,
             ])
             .stdin(Stdio::piped())
+            .stdout(Stdio::null())
             .spawn()
             .context("Failed to start ffmpeg command")?;
 
-        let stdin = ffmpeg_command.stdin.as_mut().context("Failed to open stdin")?;
+        let stdin = ffmpeg_command
+            .stdin
+            .as_mut()
+            .context("Failed to open stdin")?;
 
+        println!("Writing frames to ffmpeg");
         for frame in packet.images {
             stdin.write_all(&frame.data)?;
         }
@@ -137,10 +171,13 @@ pub fn frame_handler(
             MessageType::Text(message) => {
                 if message == "kill" {
                     log::info!("Received kill message");
-                    if frame_packet_sender.send(FramesPacket {
-                        images: VecDeque::new(),
-                        save_path: PathBuf::from("kill"),
-                    }).is_err() {
+                    if frame_packet_sender
+                        .send(FramesPacket {
+                            images: VecDeque::new(),
+                            save_path: PathBuf::from("kill"),
+                        })
+                        .is_err()
+                    {
                         log::error!("Failed to send kill signal");
                     }
                     break;
