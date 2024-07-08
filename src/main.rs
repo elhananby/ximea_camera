@@ -3,7 +3,7 @@ use crossbeam::channel;
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use std::thread;
 use anyhow::{Result, Context};
-use ctrlc;
+
 
 mod camera;
 mod frames;
