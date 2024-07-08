@@ -1,169 +1,145 @@
-// External crate imports
+use anyhow::{Context, Result};
 use clap::Parser;
 use crossbeam::channel;
 use image::{ImageBuffer, Luma};
-
 use std::sync::Arc;
-use std::thread;
+use tokio::signal;
+use tracing::{debug, error, info, warn};
 
-// Local module declarations
 mod camera;
-mod cli;
 mod frames;
 mod messages;
 mod structs;
 
-// Imports from local modules
 use camera::*;
-use cli::Args;
 use frames::frame_handler;
 use messages::{connect_to_socket, parse_message, subscribe_to_messages};
 use structs::*;
 
-fn main() -> Result<(), i32> {
-    // set logging level
-    if std::env::var_os("RUST_LOG").is_none() {
-        std::env::set_var("RUST_LOG", "info");
-    }
-
-    // setup logger
-    env_logger::init();
-
-    // setup ctrl-c handler
-    // let running = Arc::new(AtomicBool::new(true));
-    // setup_ctrlc_handler(running.clone());
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Set up logging
+    tracing_subscriber::fmt::init();
 
     // Parse command line arguments
     let args = Args::parse();
 
     // Open the camera
-    let mut cam = xiapi::open_device(Some(0))?;
+    let mut cam = xiapi::open_device(Some(0))
+        .map_err(|e| anyhow::anyhow!("Failed to open camera: error code {}", e))?;
 
     // Set camera parameters
-    set_camera_parameters(&mut cam, &args)?;
+    set_camera_parameters(&mut cam, &args)
+        .map_err(|e| anyhow::anyhow!("Failed to set camera parameters: error code {}", e))?;
 
-    // calculate frames before and after
+    // Calculate frames before and after
     let n_before = (args.t_before * args.fps) as usize;
     let n_after = (args.t_after * args.fps) as usize;
-    log::debug!(
-        "Recording {} frames before and {} after trigger",
-        n_before,
-        n_after
-    );
+    debug!("Recording {} frames before and {} after trigger", n_before, n_after);
 
-    // Connect to ZMQ; return error if connection fails
-    log::info!("Connecting to ZMQ server at {}", args.address);
-    let handshake = connect_to_socket(&args.req_port, zmq::REQ);
+    // Connect to ZMQ
+    info!("Connecting to ZMQ server at {}", args.address);
+    let handshake = connect_to_socket(&args.req_port, zmq::REQ).await
+        .context("Failed to connect to ZMQ REQ socket")?;
 
     // Send ready message to ZMQ over REQ
-    log::info!("Sending ready message to ZMQ PUB");
-    handshake.send("Hello", 0).unwrap();
+    info!("Sending ready message to ZMQ PUB");
+    handshake.send("Hello", 0).context("Failed to send handshake message")?;
 
     match handshake.recv_string(0) {
         Ok(Ok(msg)) if &msg == "Welcome" => {
-            log::info!("Handshake successful");
+            info!("Handshake successful");
         }
-        Ok(Err(e)) => {
-            log::error!("Failed to receive message: {:?}", e);
-        }
-        Err(e) => {
-            log::error!("Failed to receive message: {}", e);
-        }
-        Ok(_) => {
-            log::error!("Handshake failed");
-            return Err(1);
+        _ => {
+            error!("Handshake failed");
+            return Err(anyhow::anyhow!("Handshake failed"));
         }
     }
 
     // Connect to ZMQ subscriber
-    let subscriber = connect_to_socket(&args.sub_port, zmq::SUB);
+    let subscriber = connect_to_socket(&args.sub_port, zmq::SUB).await
+        .context("Failed to connect to ZMQ SUB socket")?;
 
     // Set save folder
     let save_folder = args.save_folder.clone();
 
-    // spawn writer thread
+    // Spawn writer thread
     let (sender, receiver) = channel::unbounded::<(Arc<ImageData>, MessageType)>();
-    let frame_handler_thread =
-        thread::spawn(move || frame_handler(receiver, n_before, n_after, save_folder));
-
-    // spawn subscriber thread
-    let (msg_sender, msg_receiver) = channel::unbounded::<String>();
-    let subscriber_thread = thread::spawn(move || subscribe_to_messages(subscriber, msg_sender));
-
-    // create image buffer
-    let buffer = cam.start_acquisition()?;
-
-    // start acquisition
-    log::info!("Starting acquisition");
-    loop {
-        // Check if there's a message from the subscriber thread
-        let msg = match msg_receiver.try_recv() {
-            Ok(message) => Some(message),
-            Err(_) => None,
-        };
-
-        // parse message
-        let mut parsed_message = MessageType::Empty;
-        if let Some(message) = msg {
-            parsed_message = parse_message(&message);
-            log::debug!("Parsed message: {:?}", parsed_message);
-
-            // check if got "kill" in parsed_message
-            if let MessageType::Text(data) = &parsed_message {
-                if data == "kill" {
-                    break;
-                }
-            }
-        } else {
-            log::debug!("No valid message received.");
+    let frame_handler_handle = tokio::spawn(async move {
+        if let Err(e) = frame_handler(receiver, n_before, n_after, save_folder).await {
+            error!("Error in frame handler: {}", e);
         }
+    });
 
-        // Get frame from camera
-        let frame = buffer.next_image::<u8>(None)?;
+    // Spawn subscriber thread
+    let (msg_sender, msg_receiver) = channel::unbounded::<String>();
+    let subscriber_handle = tokio::spawn(async move {
+        if let Err(e) = subscribe_to_messages(subscriber, msg_sender).await {
+            error!("Error in subscriber: {}", e);
+        }
+    });
 
-        // Put frame data to struct
-        let image_data = Arc::new(ImageData {
-            width: frame.width(),
-            height: frame.height(),
-            nframe: frame.nframe(),
-            acq_nframe: frame.acq_nframe(),
-            timestamp_raw: frame.timestamp_raw(),
-            exposure_time: frame.exposure_time_us(),
-            data: ImageBuffer::<Luma<u8>, Vec<u8>>::from(frame),
-        });
+    // Create image buffer
+    let buffer = cam.start_acquisition().context("Failed to start camera acquisition")?;
 
-        // send frame with the incoming parsed message
-        match sender.send((image_data, parsed_message)) {
-            Ok(_) => {
-                log::trace!("Sent frame to frame handler");
+    // Start acquisition
+    info!("Starting acquisition");
+    let mut shutdown = false;
+    while !shutdown {
+        tokio::select! {
+            _ = signal::ctrl_c() => {
+                info!("Received Ctrl+C, initiating shutdown");
+                shutdown = true;
             }
-            Err(_e) => {
-                log::warn!("Failed to send frame to frame handler");
-            } //log::error!("Failed to send frame: {}", e),
+            _ = async {
+                // Check if there's a message from the subscriber thread
+                let msg = msg_receiver.try_recv().ok();
+
+                // Parse message
+                let parsed_message = msg.as_ref().map(|m| parse_message(m)).unwrap_or(MessageType::Empty);
+                if let MessageType::Text(data) = &parsed_message {
+                    if data == "kill" {
+                        info!("Received kill message");
+                        return Ok(());
+                    }
+                }
+
+                // Get frame from camera
+                let frame = buffer.next_image::<u8>(None).context("Failed to get next image")?;
+
+                // Put frame data to struct
+                let image_data = Arc::new(ImageData {
+                    width: frame.width(),
+                    height: frame.height(),
+                    nframe: frame.nframe(),
+                    acq_nframe: frame.acq_nframe(),
+                    timestamp_raw: frame.timestamp_raw(),
+                    exposure_time: frame.exposure_time_us(),
+                    data: ImageBuffer::<Luma<u8>, Vec<u8>>::from(frame),
+                });
+
+                // Send frame with the incoming parsed message
+                if let Err(e) = sender.send((image_data, parsed_message)) {
+                    warn!("Failed to send frame to frame handler: {}", e);
+                }
+
+                Ok::<(), anyhow::Error>(())
+            } => {}
         }
     }
 
-    // stop acquisition
-    buffer.stop_acquisition()?;
+    // Stop acquisition
+    buffer.stop_acquisition().context("Failed to stop camera acquisition")?;
 
-    // send kill signal to writer thread
-    match sender.send((
+    // Send kill signal to writer thread
+    sender.send((
         Arc::new(ImageData::default()),
         MessageType::Text("kill".to_string()),
-    )) {
-        Ok(_) => {
-            log::info!("Sent kill message to frame handler");
-        }
-        Err(_e) => {
-            log::error!("Failed to send kill trigger to frame handler.")
-        }
-    }
+    )).context("Failed to send kill message to frame handler")?;
 
-    // send
-
-    // stop frame handler
-    frame_handler_thread.join().unwrap();
-    subscriber_thread.join().unwrap();
+    // Wait for frame handler and subscriber to finish
+    frame_handler_handle.await??;
+    subscriber_handle.await??;
 
     Ok(())
 }
