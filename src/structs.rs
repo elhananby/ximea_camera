@@ -1,14 +1,9 @@
-// External crate imports, alphabetized
 use image::{ImageBuffer, Luma};
 use serde::{Deserialize, Serialize};
 use serde_json::Error as SerdeError;
 use std::collections::VecDeque;
 use std::path::PathBuf;
-
-// Standard library imports, alphabetized
 use std::sync::Arc;
-
-// External crate imports, alphabetized
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -60,8 +55,7 @@ pub struct Args {
     pub save_folder: String,
 }
 
-
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct ImageData {
     pub data: ImageBuffer<Luma<u8>, Vec<u8>>,
     pub width: u32,
@@ -72,9 +66,22 @@ pub struct ImageData {
     pub exposure_time: u32,
 }
 
+impl Default for ImageData {
+    fn default() -> Self {
+        ImageData {
+            data: ImageBuffer::new(0, 0),
+            width: 0,
+            height: 0,
+            nframe: 0,
+            acq_nframe: 0,
+            timestamp_raw: 0,
+            exposure_time: 0,
+        }
+    }
+}
+
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Default, Copy, Clone)]
-#[serde(default)]
 pub struct KalmanEstimateRow {
     pub obj_id: u32,
     pub frame: u64,
@@ -96,13 +103,12 @@ pub struct KalmanEstimateRow {
     pub P55: f64,
 }
 
-// Adjusted for the enum
 #[derive(Debug)]
 pub enum MessageType {
     Empty,
     JsonData(KalmanEstimateRow),
     Text(String),
-    InvalidJson(String, SerdeError), // New variant to include parsing error details
+    InvalidJson(String, SerdeError),
 }
 
 pub struct FramesPacket {

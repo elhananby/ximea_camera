@@ -23,6 +23,8 @@ tokio = { version = "1.28", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 zmq = "0.10.0"
+ctrlc = "3.4.4"
+rayon = "1.10.0"
 
 [profile.release]
 opt-level = 3
