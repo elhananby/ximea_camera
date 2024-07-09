@@ -2,22 +2,39 @@
 name = "ximea_camera"
 version = "0.1.0"
 edition = "2021"
-authors = ["Elhanan Buchsbaum"]
 
 [dependencies]
-xiapi = { git = "https://github.com/elhananby/xiapi.git" }
-crossbeam = "0.8"
-crossbeam-channel = "0.5"
-image = "0.24.8"
-clap = { version = "4.5.4", features = ["derive"] }
-log = "0.4.21"
-env_logger = "0.11.3"
-serde_json = "1.0"
+tokio = { version = "1.28", features = ["full"] }
+clap = { version = "4.3", features = ["derive"] }
+anyhow = "1.0"
+thiserror = "1.0"
+config = "0.14"
 serde = { version = "1.0", features = ["derive"] }
-zmq = "0.10.0"
-anyhow = "1.0.86"
-rand = "0.8.5"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+image = "0.24.3"
+xiapi = {git = "https://github.com/Ximea-GmbH/xiapi.git"}
+xiapi-sys = {git = "https://github.com/Ximea-GmbH/xiapi-sys.git"}
+rayon = "1.7"
+crossbeam-channel = "0.5"
+serde_json = "1.0"
+futures = "0.3"
 
-[[example]]
-name = "set_lens_mode"
-path = "examples/set_lens_mode.rs"
+# ZMQ related dependencies
+zmq = "0.9.1"
+tokio-zmq = "0.10.1"
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockall = "0.12.1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = 'abort'
+
+[profile.dev]
+opt-level = 0
+debug = true
