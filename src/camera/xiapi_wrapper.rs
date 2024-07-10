@@ -22,16 +22,80 @@ impl XiCamera {
     }
 
     fn configure_camera(device: &mut xiapi::Camera, config: &CameraConfig) -> Result<()> {
+        // Timing mode and framerate
         device
-            .set_exposure(config.exposure)
-            .map_err(|e| anyhow!("Failed to set exposure: {}", e))?;
+            .set_acq_timing_mode(xiapi::XI_ACQ_TIMING_MODE::XI_ACQ_TIMING_MODE_FRAME_RATE)
+            .map_err(|e| anyhow!("Failed to set acquisition timing mode: {}", e))?;
+
         device
             .set_framerate(config.framerate)
             .map_err(|e| anyhow!("Failed to set frame rate: {}", e))?;
-        // device
-        //     .set_image_data_format(xiapi::ImgFormat::Mono8)
-        //     .map_err(|e| anyhow!("Failed to set image format: {}", e))?;
-        // // Add more configuration options as needed
+
+        // Data formate
+        device
+            .set_image_data_format(xiapi::XI_IMG_FORMAT::XI_MONO8)
+            .map_err(|e| anyhow!("Failed to set image data format to XI_MONO8: {}", e))?;
+
+        // Bandwidth
+        let maximum_bandwidth = device
+            .limit_bandwidth_maximum()
+            .map_err(|e| anyhow!("Failed to get maximum bandwidth limit: {}", e))?;
+
+        device
+            .set_limit_bandwidth(maximum_bandwidth)
+            .map_err(|e| anyhow!("Failed to set bandwidth limit to maximum: {}", e))?;
+
+        // Buffer size
+        let buffer_size = device
+            .acq_buffer_size()
+            .map_err(|e| anyhow!("Failed to get acquisition buffer size: {}", e))?;
+
+        device.set_acq_buffer_size(buffer_size * 4).map_err(|e| {
+            anyhow!(
+                "Failed to set acquisition buffer size to {} bytes: {}",
+                buffer_size * 4,
+                e
+            )
+        })?;
+
+        // Queue size
+        let buffer_queue_maximum = device
+            .buffers_queue_size_maximum()
+            .map_err(|e| anyhow!("Failed to get maximum buffer queue size: {}", e))?;
+
+        device
+            .set_buffers_queue_size(buffer_queue_maximum)
+            .map_err(|e| anyhow!("Failed to set buffer queue size to maximum: {}", e))?;
+
+        // unsafe AEAG
+        unsafe {
+            xiapi::xiSetParamInt(
+                **device,
+                xiapi::XI_PRM_AEAG.as_ptr() as *const i8,
+                xiapi::XI_SWITCH::XI_ON.try_into().unwrap(),
+            );
+            xiapi::xiSetParamFloat(
+                **device,
+                xiapi::XI_PRM_EXP_PRIORITY.as_ptr() as *const i8,
+                1.0,
+            );
+            xiapi::xiSetParamInt(
+                **device,
+                xiapi::XI_PRM_AE_MAX_LIMIT.as_ptr() as *const i8,
+                2000,
+            );
+            xiapi::xiSetParamFloat(
+                **device,
+                xiapi::XI_PRM_AEAG_LEVEL.as_ptr() as *const i8,
+                75.0,
+            );
+        }
+
+        // recent frame
+        device
+            .recent_frame()
+            .map_err(|e| anyhow!("Failed to get recent frame: {}", e))?;
+
         Ok(())
     }
 
