@@ -1,12 +1,12 @@
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
+use std::collections::VecDeque;
 use std::path::Path;
 use std::process::{Command, Stdio};
-use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
-use tracing::{info, error};
+use tracing::{error, info};
 
-use crate::camera::Frame;
+use crate::camera::frame::Frame;
 use crate::utils::config::VideoConfig;
 
 pub struct VideoWriter {
@@ -23,16 +23,29 @@ impl VideoWriter {
     pub async fn write_video(&self, path: &Path, frames: &VecDeque<Arc<Frame>>) -> Result<()> {
         info!("Writing video to {:?}", path);
 
+        if frames.is_empty() {
+            return Err(anyhow::anyhow!("No frames to write"));
+        }
+
+        let first_frame = &frames[0];
         let mut ffmpeg = Command::new("ffmpeg")
             .args(&[
-                "-f", "rawvideo",
-                "-pixel_format", "gray",
-                "-video_size", &format!("{}x{}", frames[0].width, frames[0].height),
-                "-framerate", &self.config.framerate.to_string(),
-                "-i", "-",
-                "-c:v", "libx264",
-                "-preset", "ultrafast",
-                "-crf", "23",
+                "-f",
+                "rawvideo",
+                "-pixel_format",
+                "gray",
+                "-video_size",
+                &format!("{}x{}", first_frame.width, first_frame.height),
+                "-framerate",
+                &self.config.framerate.to_string(),
+                "-i",
+                "-",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+                "-crf",
+                "23",
                 "-y",
                 path.to_str().unwrap(),
             ])
@@ -42,21 +55,21 @@ impl VideoWriter {
             .spawn()
             .context("Failed to spawn FFmpeg process")?;
 
-        let mut stdin = ffmpeg.stdin.take()
-            .context("Failed to open FFmpeg stdin")?;
+        let mut stdin = ffmpeg.stdin.take().context("Failed to open FFmpeg stdin")?;
 
         let mut stdin = tokio::process::ChildStdin::from_std(stdin)
             .context("Failed to create tokio ChildStdin")?;
 
         for frame in frames {
-            stdin.write_all(frame.as_bytes()).await
+            stdin
+                .write_all(frame.as_bytes())
+                .await
                 .context("Failed to write frame to FFmpeg")?;
         }
 
         drop(stdin);
 
-        let status = ffmpeg.wait()
-            .context("Failed to wait for FFmpeg process")?;
+        let status = ffmpeg.wait().context("Failed to wait for FFmpeg process")?;
 
         if !status.success() {
             error!("FFmpeg process failed with status: {}", status);

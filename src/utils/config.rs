@@ -1,6 +1,6 @@
-use serde::Deserialize;
+use anyhow::{Context, Result};
 use config::{Config as ConfigCrate, File, FileFormat};
-use anyhow::{Result, Context};
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -49,7 +49,8 @@ impl Config {
             .build()
             .context("Failed to build configuration")?;
 
-        config.try_deserialize()
+        config
+            .try_deserialize()
             .context("Failed to deserialize configuration")
     }
 }

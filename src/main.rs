@@ -1,20 +1,22 @@
-use tokio;
-use clap::Parser;
 use anyhow::Result;
-use tracing::{info, error};
+use clap::Parser;
 use std::sync::Arc;
+use tracing::{error, info};
 
 mod camera;
-mod processing;
 mod communication;
-mod utils;
+mod processing;
 mod types;
+mod utils;
+
+use std::sync::Mutex;
+use tokio;
 
 use camera::XiCamera;
-use processing::FrameProcessor;
 use communication::ZmqClient;
-use utils::{Config, init_logging, AppError};
-use types::{TriggerMessage, SystemEvent};
+use processing::FrameProcessor;
+use types::{SystemEvent, TriggerMessage};
+use utils::{init_logging, AppError, Config};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about)]
@@ -39,7 +41,8 @@ async fn main() -> Result<(), AppError> {
     info!("Configuration loaded from: {}", args.config);
 
     // Initialize camera
-    let mut camera = XiCamera::new(&config.camera).map_err(|e| AppError::CameraError(e.to_string()))?;
+    let camera = XiCamera::new(&config.camera).map_err(|e| AppError::CameraError(e.to_string()))?;
+    let camera = Arc::new(Mutex::new(camera));
 
     // Initialize ZMQ client
     let zmq_client = ZmqClient::new(&config.zmq);
@@ -54,51 +57,75 @@ async fn main() -> Result<(), AppError> {
         .map_err(|e| AppError::ProcessingError(e.to_string()))?;
 
     // Spawn frame processing task
-    let processing_handle = tokio::spawn(async move {
-        frame_processor.run(frame_receiver, trigger_receiver).await
-    });
+    let processing_handle =
+        tokio::spawn(async move { frame_processor.run(frame_receiver, trigger_receiver).await });
 
     // Spawn ZMQ listening task
     let zmq_handle = tokio::spawn(async move {
         if let Err(e) = zmq_client.listen_for_triggers(trigger_sender).await {
             error!("ZMQ listener error: {}", e);
         }
-    }); 
+    });
 
     // Main capture loop
     info!("Starting main capture loop");
-    camera.start_acquisition().map_err(|e| AppError::CameraError(e.to_string()))?;
-    
+    camera
+        .lock()
+        .unwrap()
+        .start_acquisition()
+        .map_err(|e| AppError::CameraError(e.to_string()))?;
+
     let mut shutdown_requested = false;
     while !shutdown_requested {
+        let camera_clone = Arc::clone(&camera);
         tokio::select! {
-            _ = tokio::task::spawn_blocking(move || camera.capture_frame()) => {
-                match camera.capture_frame() {
-                    Ok(frame) => {
+            frame_result = tokio::task::spawn_blocking(move || {
+                camera_clone.lock().unwrap().capture_frame()
+            }) => {
+                match frame_result {
+                    Ok(Ok(frame)) => {
                         if let Err(e) = frame_sender.send(Arc::new(frame)).await {
                             error!("Failed to send frame: {}", e);
                             shutdown_requested = true;
                         }
                     }
-                    Err(e) => {
+                    Ok(Err(e)) => {
                         error!("Failed to capture frame: {}", e);
+                        shutdown_requested = true;
+                    }
+                    Err(e) => {
+                        error!("Frame capture task panicked: {}", e);
                         shutdown_requested = true;
                     }
                 }
             }
             Some(event) = event_receiver.recv() => {
-                // ... (event handling remains the same)
+                match event {
+                    SystemEvent::VideoSaved(metadata) => {
+                        info!("Video saved: {:?}", metadata);
+                    }
+                    SystemEvent::Error(err) => {
+                        error!("System error: {}", err);
+                        shutdown_requested = true;
+                    }
+                    _ => {}  // Handle other events as needed
+                }
             }
+
             _ = tokio::signal::ctrl_c() => {
                 info!("Received interrupt signal, initiating shutdown");
                 shutdown_requested = true;
             }
         }
-    }   
+    }
 
     // Shutdown procedure
     info!("Stopping camera acquisition");
-    camera.stop_acquisition().map_err(|e| AppError::CameraError(e.to_string()))?;
+    camera
+        .lock()
+        .unwrap()
+        .stop_acquisition()
+        .map_err(|e| AppError::CameraError(e.to_string()))?;
 
     info!("Waiting for frame processor to finish");
     if let Err(e) = processing_handle.await {

@@ -1,18 +1,18 @@
-use anyhow::{Result, Context, bail};
+use anyhow::{bail, Context, Result};
 use serde_json;
 
 use crate::types::TriggerMessage;
 
 pub fn parse_message(message: &str) -> Result<TriggerMessage> {
     let parts: Vec<&str> = message.splitn(2, ' ').collect();
-    
+
     if parts.len() != 2 || parts[0] != "trigger" {
         bail!("Invalid message format");
     }
 
     let payload = parts[1];
-    let trigger: TriggerMessage = serde_json::from_str(payload)
-        .context("Failed to parse JSON payload")?;
+    let trigger: TriggerMessage =
+        serde_json::from_str(payload).context("Failed to parse JSON payload")?;
 
     Ok(trigger)
 }

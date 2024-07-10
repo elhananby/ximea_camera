@@ -1,14 +1,14 @@
-use anyhow::{Result, Context};
-use tokio::sync::mpsc::{Receiver, Sender};
-use tracing::{info, error, debug};
+use anyhow::{Context, Result};
 use std::collections::VecDeque;
 use std::sync::Arc;
+use tokio::sync::mpsc::{Receiver, Sender};
+use tracing::{debug, error, info};
 
-use crate::camera::Frame;
-use crate::types::{TriggerMessage, SystemEvent};
-use crate::utils::config::ProcessingConfig;
 use super::trigger_handler::TriggerHandler;
 use super::video_writer::VideoWriter;
+use crate::camera::Frame;
+use crate::types::{SystemEvent, TriggerMessage};
+use crate::utils::config::ProcessingConfig;
 
 pub struct FrameProcessor {
     config: ProcessingConfig,
@@ -108,7 +108,9 @@ impl FrameProcessor {
     async fn save_video(&mut self, trigger: &TriggerMessage) -> Result<()> {
         info!("Saving video for trigger: {:?}", trigger);
         let video_path = self.trigger_handler.generate_video_path(trigger);
-        self.video_writer.write_video(&video_path, &self.buffer).await?;
+        self.video_writer
+            .write_video(&video_path, &self.buffer)
+            .await?;
         self.buffer.clear();
         self.state = ProcessorState::Buffering;
         Ok(())

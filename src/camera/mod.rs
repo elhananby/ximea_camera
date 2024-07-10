@@ -1,5 +1,5 @@
-pub mod xiapi_wrapper;
 pub mod frame;
+pub mod xiapi_wrapper;
 
-pub use xiapi_wrapper::XiCamera;
 pub use frame::Frame;
+pub use xiapi_wrapper::XiCamera;
