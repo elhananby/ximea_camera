@@ -1,0 +1,34 @@
+# Camera Configuration
+[camera]
+device_id = 0
+exposure = 2000.0  # in microseconds
+framerate = 500.0  # frames per second
+width = 1280
+height = 1024
+offset_x = 0
+offset_y = 0
+
+# Processing Configuration
+[processing]
+buffer_size = 1000  # number of frames to keep in buffer
+frames_after_trigger = 500  # number of frames to capture after receiving a trigger
+
+# Video Configuration (sub-section of processing)
+[processing.video_config]
+framerate = 30.0  # output video framerate
+codec = "h264_nvenc"
+crf = 23  # Constant Rate Factor for video compression (0-51, lower is better quality but larger file size)
+
+# ZMQ Configuration
+[zmq]
+sub_address = "tcp://localhost:5556"
+req_address = "tcp://localhost:5557"
+
+# Logging Configuration
+[log]
+level = "info"  # Can be "trace", "debug", "info", "warn", or "error"
+file = "camera_system.log"  # Optional: comment out to log to stdout only
+
+# Additional Configuration
+additional.channel_capacity = 100  # Capacity for various channels in the system
+additional.save_folder = "./output"  # Folder to save captured videos

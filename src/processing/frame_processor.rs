@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::signal;
 use tracing::{debug, error, info};
 
 use super::trigger_handler::TriggerHandler;
@@ -65,6 +66,10 @@ impl FrameProcessor {
                         self.event_sender.send(SystemEvent::Error(e.to_string())).await
                             .context("Failed to send error event")?;
                     }
+                }
+                _ = signal::ctrl_c() => {
+                    info!("Received SIGINT, stopping frame processor");
+                    break;
                 }
                 else => break,
             }

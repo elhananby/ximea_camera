@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use config::{Config as ConfigCrate, File, FileFormat};
 use serde::Deserialize;
+use std::path::PathBuf;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -10,11 +11,19 @@ pub struct Config {
     pub log: LogConfig,
 }
 
+#[derive(Clone)]
+pub struct RuntimeConfig {
+    pub save_folder: Option<PathBuf>,
+}
 #[derive(Debug, Deserialize, Clone)]
 pub struct CameraConfig {
     pub device_id: u32,
     pub exposure: f32,
     pub framerate: f32,
+    pub width: u32,
+    pub height: u32,
+    pub offset_x: u32,
+    pub offset_y: u32,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -34,6 +43,7 @@ pub struct VideoConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct ZmqConfig {
     pub sub_address: String,
+    pub req_address: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -42,15 +52,14 @@ pub struct LogConfig {
     pub file: Option<String>,
 }
 
-impl Config {
+impl Config {    
     pub fn load(path: &str) -> Result<Self> {
         let config = ConfigCrate::builder()
-            .add_source(File::new(path, FileFormat::Toml))
+            .add_source(File::with_name(path))
             .build()
-            .context("Failed to build configuration")?;
+            .unwrap();
 
         config
-            .try_deserialize()
-            .context("Failed to deserialize configuration")
+            .try_deserialize().map_err(|e| anyhow::anyhow!(e))
     }
 }

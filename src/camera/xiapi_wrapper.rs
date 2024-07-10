@@ -22,9 +22,20 @@ impl XiCamera {
     }
 
     fn configure_camera(device: &mut xiapi::Camera, config: &CameraConfig) -> Result<()> {
+
+        // Resolution
+        let roi = xiapi::Roi {
+            offset_x: config.offset_x,
+            offset_y: config.offset_y,
+            width: config.width,
+            height: config.height,
+        };
+
+        device.set_roi(&roi).map_err(|e| anyhow!("Failed to set ROI: {}", e))?;
+
         // Timing mode and framerate
         device
-            .set_acq_timing_mode(xiapi::XI_ACQ_TIMING_MODE::XI_ACQ_TIMING_MODE_FRAME_RATE)
+            .set_acq_timing_mode(xiapi::XI_ACQ_TIMING_MODE::XI_ACQ_TIMING_MODE_FRAME_RATE_LIMIT)
             .map_err(|e| anyhow!("Failed to set acquisition timing mode: {}", e))?;
 
         device
