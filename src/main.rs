@@ -11,11 +11,10 @@ mod utils;
 
 use std::sync::Mutex;
 
-
 use camera::XiCamera;
 use communication::ZmqClient;
 use processing::FrameProcessor;
-use types::{SystemEvent};
+use types::SystemEvent;
 use utils::{init_logging, AppError, Config};
 
 #[derive(Parser, Debug)]
