@@ -1,5 +1,5 @@
-use anyhow::{Context, Result};
-use config::{Config as ConfigCrate, File, FileFormat};
+use anyhow::{Result};
+use config::{Config as ConfigCrate, File};
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -52,14 +52,13 @@ pub struct LogConfig {
     pub file: Option<String>,
 }
 
-impl Config {    
+impl Config {
     pub fn load(path: &str) -> Result<Self> {
         let config = ConfigCrate::builder()
             .add_source(File::with_name(path))
             .build()
             .unwrap();
 
-        config
-            .try_deserialize().map_err(|e| anyhow::anyhow!(e))
+        config.try_deserialize().map_err(|e| anyhow::anyhow!(e))
     }
 }

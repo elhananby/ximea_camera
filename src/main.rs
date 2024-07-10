@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::{error};
 
 mod camera;
 mod communication;
@@ -9,15 +9,15 @@ mod processing;
 mod types;
 mod utils;
 
-use std::sync::Mutex;
 use std::env;
+use std::sync::Mutex;
 
 use camera::XiCamera;
 use communication::ZmqClient;
+
 use processing::FrameProcessor;
 use types::SystemEvent;
-use utils::{init_logging, AppError, Config};
-use log;
+use utils::{AppError, Config};
 #[derive(Parser, Debug)]
 #[clap(author, version, about)]
 struct Args {
@@ -39,7 +39,7 @@ async fn main() -> Result<(), AppError> {
     let config = Config::load(&args.config).map_err(|e| AppError::ConfigError(e.to_string()))?;
 
     // Set save folder
-    let save_folder = args.save_folder.clone();
+    let _save_folder = args.save_folder.clone();
 
     // Initialize logging
     // init_logging(&config.log).map_err(|e| AppError::Other(e.to_string()))?;

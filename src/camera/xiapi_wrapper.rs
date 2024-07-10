@@ -22,7 +22,6 @@ impl XiCamera {
     }
 
     fn configure_camera(device: &mut xiapi::Camera, config: &CameraConfig) -> Result<()> {
-
         // Resolution
         let roi = xiapi::Roi {
             offset_x: config.offset_x,
@@ -31,7 +30,9 @@ impl XiCamera {
             height: config.height,
         };
 
-        device.set_roi(&roi).map_err(|e| anyhow!("Failed to set ROI: {}", e))?;
+        device
+            .set_roi(&roi)
+            .map_err(|e| anyhow!("Failed to set ROI: {}", e))?;
 
         // Timing mode and framerate
         device

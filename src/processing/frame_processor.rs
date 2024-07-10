@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use std::collections::VecDeque;
 use std::sync::Arc;
-use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::signal;
+use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::{debug, error, info};
 
 use super::trigger_handler::TriggerHandler;
