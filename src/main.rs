@@ -10,12 +10,12 @@ mod types;
 mod utils;
 
 use std::sync::Mutex;
-use tokio;
+
 
 use camera::XiCamera;
 use communication::ZmqClient;
 use processing::FrameProcessor;
-use types::{SystemEvent, TriggerMessage};
+use types::{SystemEvent};
 use utils::{init_logging, AppError, Config};
 
 #[derive(Parser, Debug)]

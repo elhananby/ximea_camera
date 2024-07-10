@@ -1,8 +1,8 @@
-use anyhow::{Context, Result};
+use anyhow::{Result};
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender};
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 use super::trigger_handler::TriggerHandler;
 use super::video_writer::VideoWriter;

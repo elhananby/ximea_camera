@@ -29,7 +29,7 @@ impl VideoWriter {
 
         let first_frame = &frames[0];
         let mut ffmpeg = Command::new("ffmpeg")
-            .args(&[
+            .args([
                 "-f",
                 "rawvideo",
                 "-pixel_format",
@@ -55,7 +55,7 @@ impl VideoWriter {
             .spawn()
             .context("Failed to spawn FFmpeg process")?;
 
-        let mut stdin = ffmpeg.stdin.take().context("Failed to open FFmpeg stdin")?;
+        let stdin = ffmpeg.stdin.take().context("Failed to open FFmpeg stdin")?;
 
         let mut stdin = tokio::process::ChildStdin::from_std(stdin)
             .context("Failed to create tokio ChildStdin")?;
