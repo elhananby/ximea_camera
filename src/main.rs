@@ -29,9 +29,6 @@ fn main() -> Result<(), i32> {
     // setup logger
     env_logger::init();
 
-    // setup ctrl-c handler
-    // let running = Arc::new(AtomicBool::new(true));
-    // setup_ctrlc_handler(running.clone());
 
     // Parse command line arguments
     let args = Args::parse();
@@ -158,8 +155,6 @@ fn main() -> Result<(), i32> {
             log::error!("Failed to send kill trigger to frame handler.")
         }
     }
-
-    // send
 
     // stop frame handler
     frame_handler_thread.join().unwrap();
