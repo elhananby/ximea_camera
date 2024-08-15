@@ -10,11 +10,8 @@ pub struct Args {
     #[arg(long, default_value_t = 500.0)]
     pub fps: f32,
 
-    #[arg(long, default_value_t = 1200.0)]
+    #[arg(long, default_value_t = 2000.0)]
     pub exposure: f32,
-
-    #[arg(long, default_value_t = 10.0)]
-    pub aperture: f32,
 
     #[arg(long, default_value_t = 2016)]
     pub width: u32,
@@ -22,10 +19,10 @@ pub struct Args {
     #[arg(long, default_value_t = 2016)]
     pub height: u32,
 
-    #[arg(long, default_value_t = 1216)]
+    #[arg(long, default_value_t = 1056)]
     pub offset_x: u32,
 
-    #[arg(long, default_value_t = 126)]
+    #[arg(long, default_value_t = 170)]
     pub offset_y: u32,
 
     #[arg(long, default_value_t = 0.5)]

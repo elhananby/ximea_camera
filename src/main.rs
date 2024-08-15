@@ -29,7 +29,6 @@ fn main() -> Result<(), i32> {
     // setup logger
     env_logger::init();
 
-
     // Parse command line arguments
     let args = Args::parse();
 
@@ -49,28 +48,7 @@ fn main() -> Result<(), i32> {
     );
 
     // Connect to ZMQ; return error if connection fails
-    log::info!("Connecting to ZMQ server at {}", args.address);
-    let handshake = connect_to_socket(&args.req_port, zmq::REQ);
-
-    // Send ready message to ZMQ over REQ
-    log::info!("Sending ready message to ZMQ PUB");
-    handshake.send("Hello", 0).unwrap();
-
-    match handshake.recv_string(0) {
-        Ok(Ok(msg)) if &msg == "Welcome" => {
-            log::info!("Handshake successful");
-        }
-        Ok(Err(e)) => {
-            log::error!("Failed to receive message: {:?}", e);
-        }
-        Err(e) => {
-            log::error!("Failed to receive message: {}", e);
-        }
-        Ok(_) => {
-            log::error!("Handshake failed");
-            return Err(1);
-        }
-    }
+    log::info!("Connecting to ZMQ server at {}", args.sub_port);
 
     // Connect to ZMQ subscriber
     let subscriber = connect_to_socket(&args.sub_port, zmq::SUB);
