@@ -1,9 +1,8 @@
-// External crate imports, alphabetized
 use clap::Parser;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
-pub struct Args {
+pub struct CliArgs {
     #[arg(long, default_value_t = 0)]
     pub serial: u32,
 
@@ -43,6 +42,12 @@ pub struct Args {
     #[arg(long, default_value_t = false)]
     pub debug: bool,
 
-    #[arg(long, default_value_t = String::from("None"))]
+    #[arg(long, default_value_t = String::from("."))]
     pub save_folder: String,
+}
+
+impl CliArgs {
+    pub fn parse() -> Self {
+        <Self as Parser>::parse()
+    }
 }
