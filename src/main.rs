@@ -32,7 +32,7 @@ fn main() -> Result<(), i32> {
     // Parse command line arguments
     let args = Args::parse();
 
-    log::info!("Command-line arguments: {:?}", &args);
+    log::debug!("Command-line arguments: {:?}", &args);
 
     // Open the camera
     let mut cam = xiapi::open_device(Some(0))?;

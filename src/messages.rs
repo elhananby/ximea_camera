@@ -4,6 +4,7 @@ use crossbeam::channel;
 pub fn connect_to_socket(port: &str, socket_type: zmq::SocketType) -> zmq::Socket {
     let context = zmq::Context::new();
     let socket = context.socket(socket_type).unwrap();
+    println!("Connecting to port {}", port);
     socket
         .connect(format!("tcp://127.0.0.1:{}", port).as_str())
         .unwrap();
