@@ -3,19 +3,20 @@ name = "ximea_camera"
 version = "0.1.0"
 authors = ["Elhanan Buchsbaum <elhananby@gmail.com>"]
 
+edition = "2021"
 [dependencies]
-xiapi = { git = "https://github.com/Ximea-GmbH/xiapi.git" }
-anyhow = "1.0"
-log = "0.4"
+xiapi = { git = "https://github.com/elhananby/xiapi.git" }
+clap = { version = "4.0", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-image = "0.24"
-zmq = "0.10"
-clap = { version = "4.0", features = ["derive"] }
 toml = "0.8.19"
+anyhow = "1.0"
 thiserror = "1.0"
+log = "0.4"
 fern = { version = "0.6", features = ["colored"] }
 chrono = "0.4"
+image = "0.24"
+zmq = "0.10"
 
 [lib]
 name = "ximea_camera"

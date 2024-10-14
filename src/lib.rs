@@ -7,6 +7,7 @@
 //! - Saving videos and metadata
 
 pub mod camera;
+pub mod cli;
 pub mod config;
 pub mod error;
 pub mod frame;
@@ -14,7 +15,6 @@ pub mod logging;
 pub mod messaging;
 pub mod video;
 
-// Re-export commonly used types for convenience
 pub use camera::XimeaCamera;
 pub use config::Config;
 pub use error::{AppError, Result};
@@ -22,6 +22,7 @@ pub use frame::{Frame, FrameBuffer, FrameProcessor};
 pub use messaging::{ZmqSubscriber, MessageType};
 pub use video::{VideoSaver, save_video_metadata};
 
+// Rest of the lib.rs content...
 /// Version of the library
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 

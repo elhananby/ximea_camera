@@ -1447,7 +1447,7 @@ dependencies = [
 [[package]]
 name = "xiapi"
 version = "0.1.4"
-source = "git+https://github.com/Ximea-GmbH/xiapi.git#0e8f8ff19d527fdbc36acdbc9c719e6cb48c47ff"
+source = "git+https://github.com/elhananby/xiapi.git#dea3d944d6c1d54ea0112f5a163cd5aef8305498"
 dependencies = [
  "image",
  "paste",

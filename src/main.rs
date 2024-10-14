@@ -1,24 +1,18 @@
-mod camera;
-mod cli;
-mod config;
-mod error;
-mod frame;
-mod logging;
-mod messaging;
-mod video;
+use ximea_camera::{
+    camera::XimeaCamera,
+    cli::CliArgs,
+    config::Config,
+    error::AppError,
+    frame::{Frame, FrameBuffer, FrameProcessor},
+    logging,
+    messaging::{ZmqSubscriber, MessageType},
+    video::{VideoSaver, save_video_metadata},
+};
 
 use anyhow::Result;
 use log::{info, error};
 use std::sync::Arc;
 use std::time::Duration;
-
-use crate::camera::XimeaCamera;
-use crate::cli::CliArgs;
-use crate::config::Config;
-use crate::error::AppError;
-use crate::frame::{Frame, FrameBuffer, FrameProcessor};
-use crate::messaging::{ZmqSubscriber, MessageType};
-use crate::video::{VideoSaver, save_video_metadata};
 
 fn main() -> Result<()> {
     // Parse command-line arguments
