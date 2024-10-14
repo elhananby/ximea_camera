@@ -1,0 +1,13 @@
+/home/buchsbaum/src/ximea_camera/target/debug/deps/libtoml-eb387187b6845648.rmeta: /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/lib.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/map.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/value.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/de.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/ser.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/macros.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/edit.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/fmt.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/table.rs
+
+/home/buchsbaum/src/ximea_camera/target/debug/deps/toml-eb387187b6845648.d: /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/lib.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/map.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/value.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/de.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/ser.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/macros.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/edit.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/fmt.rs /home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/table.rs
+
+/home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/lib.rs:
+/home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/map.rs:
+/home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/value.rs:
+/home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/de.rs:
+/home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/ser.rs:
+/home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/macros.rs:
+/home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/edit.rs:
+/home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/fmt.rs:
+/home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/toml-0.8.19/src/table.rs:

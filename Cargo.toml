@@ -1,24 +1,26 @@
 [package]
 name = "ximea_camera"
 version = "0.1.0"
-edition = "2021"
-authors = ["Elhanan Buchsbaum"]
+authors = ["Elhanan Buchsbaum <elhananby@gmail.com>"]
 
 [dependencies]
-xiapi = { git = "https://github.com/elhananby/xiapi.git" }
-crossbeam = "0.8"
-crossbeam-channel = "0.5"
-image = "0.24.8"
-clap = { version = "4.5.4", features = ["derive"] }
-log = "0.4.21"
-env_logger = "0.11.3"
-serde_json = "1.0"
+xiapi = { git = "https://github.com/Ximea-GmbH/xiapi.git" }
+anyhow = "1.0"
+log = "0.4"
 serde = { version = "1.0", features = ["derive"] }
-zmq = "0.10.0"
-anyhow = "1.0.86"
-rand = "0.8.5"
-ffmpeg-next = "7.0.4"
+serde_json = "1.0"
+image = "0.24"
+zmq = "0.10"
+clap = { version = "4.0", features = ["derive"] }
+toml = "0.8.19"
+thiserror = "1.0"
+fern = { version = "0.6", features = ["colored"] }
+chrono = "0.4"
 
-# [[example]]
-# name = "set_lens_mode"
-# path = "examples/set_lens_mode.rs"
+[lib]
+name = "ximea_camera"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ximea_camera"
+path = "src/main.rs"

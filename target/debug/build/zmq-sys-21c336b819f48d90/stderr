@@ -1,0 +1,8 @@
+/home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/zeromq-src-0.2.6+4.3.4/src/strlcpy.c: In function ‘main’:
+/home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/zeromq-src-0.2.6+4.3.4/src/strlcpy.c:5:11: warning: implicit declaration of function ‘strlcpy’; did you mean ‘strncpy’? [-Wimplicit-function-declaration]
+    5 |     (void)strlcpy(buf, "a", 1);
+      |           ^~~~~~~
+      |           strncpy
+/usr/bin/ld: /tmp/ccHaIVDc.o: in function `main':
+/home/buchsbaum/.cargo/registry/src/index.crates.io-6f17d22bba15001f/zeromq-src-0.2.6+4.3.4/src/strlcpy.c:5: undefined reference to `strlcpy'
+collect2: error: ld returned 1 exit status

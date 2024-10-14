@@ -1,144 +1,131 @@
-// External crate imports
-use clap::Parser;
-use crossbeam::channel;
-use image::{ImageBuffer, Luma};
-
-use std::sync::Arc;
-use std::thread;
-
-// Local module declarations
 mod camera;
 mod cli;
-mod frames;
-mod messages;
-mod structs;
+mod config;
+mod error;
+mod frame;
+mod logging;
+mod messaging;
+mod video;
 
-// Imports from local modules
-use camera::*;
-use cli::Args;
-use frames::frame_handler;
-use messages::{connect_to_socket, parse_message, subscribe_to_messages};
-use structs::*;
+use anyhow::Result;
+use log::{info, error};
+use std::sync::Arc;
+use std::time::Duration;
 
-fn main() -> Result<(), i32> {
-    // set logging level
-    if std::env::var_os("RUST_LOG").is_none() {
-        std::env::set_var("RUST_LOG", "info");
-    }
+use crate::camera::XimeaCamera;
+use crate::cli::CliArgs;
+use crate::config::Config;
+use crate::error::AppError;
+use crate::frame::{Frame, FrameBuffer, FrameProcessor};
+use crate::messaging::{ZmqSubscriber, MessageType};
+use crate::video::{VideoSaver, save_video_metadata};
 
-    // setup logger
-    env_logger::init();
+fn main() -> Result<()> {
+    // Parse command-line arguments
+    let cli_args = CliArgs::parse();
 
-    // Parse command line arguments
-    let args = Args::parse();
+    // Setup logging
+    logging::setup_logging(cli_args.debug as u8, None)?;
+    logging::log_app_start(env!("CARGO_PKG_VERSION"));
 
-    log::debug!("Command-line arguments: {:?}", &args);
+    // Load configuration
+    let config = Config::load(&cli_args)?;
+    logging::log_app_config(&config);
 
-    // Open the camera
-    let mut cam = xiapi::open_device(Some(0))?;
+    // Initialize camera
+    let mut camera = XimeaCamera::new(&config.camera)
+        .map_err(|e| AppError::Camera(e))?;
 
-    // Set camera parameters
-    set_camera_parameters(&mut cam, &args)?;
+    // Initialize frame buffer
+    let buffer_size = (config.buffer.t_before * config.camera.fps) as usize;
+    let mut frame_buffer = FrameBuffer::new(buffer_size);
 
-    // calculate frames before and after
-    let n_before = (args.t_before * args.fps) as usize;
-    let n_after = (args.t_after * args.fps) as usize;
-    log::debug!(
-        "Recording {} frames before and {} after trigger",
-        n_before,
-        n_after
-    );
+    // Initialize ZMQ subscriber
+    let subscriber = ZmqSubscriber::new(&config.network.address, &config.network.sub_port)?;
 
-    // Connect to ZMQ; return error if connection fails
-    log::info!("Connecting to ZMQ server at {}", args.sub_port);
+    // Start image acquisition
+    let acquisition = camera.start_acquisition()?;
 
-    // Connect to ZMQ subscriber
-    let subscriber = connect_to_socket(&args.sub_port, zmq::SUB);
+    // Main loop
+    info!("Entering main acquisition loop");
+    let mut is_recording = false;
+    let mut frames_after_trigger = 0;
+    let frames_to_save = (config.buffer.t_after * config.camera.fps) as usize;
+    let mut video_saver: Option<VideoSaver> = None;
+    let mut saved_frames: Vec<Frame> = Vec::new();
 
-    // Set save folder
-    let save_folder = args.save_folder.clone();
-
-    // spawn writer thread
-    let (sender, receiver) = channel::unbounded::<(Arc<ImageData>, MessageType)>();
-    let frame_handler_thread =
-        thread::spawn(move || frame_handler(receiver, n_before, n_after, save_folder));
-
-    // spawn subscriber thread
-    let (msg_sender, msg_receiver) = channel::unbounded::<String>();
-    let subscriber_thread = thread::spawn(move || subscribe_to_messages(subscriber, msg_sender));
-
-    // create image buffer
-    let buffer = cam.start_acquisition()?;
-
-    // start acquisition
-    log::info!("Starting acquisition");
     loop {
-        // Check if there's a message from the subscriber thread
-        let msg = match msg_receiver.try_recv() {
-            Ok(message) => Some(message),
-            Err(_) => None,
-        };
+        // Check for incoming messages
+        match subscriber.receive_message(Duration::from_millis(1)) {
+            Ok(MessageType::JsonData(data)) => {
+                info!("Received trigger for object {}", data.obj_id);
+                is_recording = true;
+                frames_after_trigger = 0;
+                
+                let output_path = format!("{}/obj_id_{}_frame_{}.mp4", 
+                    config.output.save_folder, data.obj_id, data.frame);
+                
+                video_saver = Some(VideoSaver::new(
+                    config.camera.width,
+                    config.camera.height,
+                    config.camera.fps as u32,
+                    &output_path
+                )?);
+                
+                // Save buffered frames
+                for frame in frame_buffer.iter() {
+                    if let Some(saver) = video_saver.as_mut() {
+                        saver.write_frame(frame)?;
+                        saved_frames.push(frame.as_ref().clone());
+                    }
+                }
+            },
+            Ok(MessageType::Text(text)) if text == "kill" => {
+                info!("Received kill signal, stopping acquisition");
+                break;
+            },
+            Ok(_) => {}, // Ignore other message types
+            Err(e) => {
+                error!("Error receiving message: {}", e);
+                // Decide whether to break or continue based on the error
+            }
+        }
 
-        // parse message
-        let mut parsed_message = MessageType::Empty;
-        if let Some(message) = msg {
-            parsed_message = parse_message(&message);
-            log::debug!("Parsed message: {:?}", parsed_message);
+        // Capture and process frame
+        let raw_frame = acquisition.next_image::<u8>(None)?;
+        let frame = FrameProcessor::process_frame(&raw_frame)?;
 
-            // check if got "kill" in parsed_message
-            if let MessageType::Text(data) = &parsed_message {
-                if data == "kill" {
-                    break;
+        // Add frame to buffer
+        frame_buffer.push(Arc::new(frame.clone()));
+
+        // If recording, save frame
+        if is_recording {
+            if let Some(saver) = video_saver.as_mut() {
+                saver.write_frame(&frame)?;
+                saved_frames.push(frame);
+            }
+
+            frames_after_trigger += 1;
+            if frames_after_trigger >= frames_to_save {
+                is_recording = false;
+                if let Some(saver) = video_saver.take() {
+                    saver.finalize()?;
+                    info!("Finished saving video");
+
+                    let metadata_path = format!("{}/obj_id_{}_frame_{}_metadata.csv", 
+                        config.output.save_folder, saved_frames[0].nframe, saved_frames.last().unwrap().nframe);
+                    save_video_metadata(&saved_frames, std::path::Path::new(&metadata_path))?;
+                    info!("Saved metadata to {}", metadata_path);
+
+                    saved_frames.clear();
                 }
             }
-        } else {
-            log::debug!("No valid message received.");
-        }
-
-        // Get frame from camera
-        let frame = buffer.next_image::<u8>(None)?;
-
-        // Put frame data to struct
-        let image_data = Arc::new(ImageData {
-            width: frame.width(),
-            height: frame.height(),
-            nframe: frame.nframe(),
-            acq_nframe: frame.acq_nframe(),
-            timestamp_raw: frame.timestamp_raw(),
-            exposure_time: frame.exposure_time_us(),
-            data: ImageBuffer::<Luma<u8>, Vec<u8>>::from(frame),
-        });
-
-        // send frame with the incoming parsed message
-        match sender.send((image_data, parsed_message)) {
-            Ok(_) => {
-                log::trace!("Sent frame to frame handler");
-            }
-            Err(_e) => {
-                log::warn!("Failed to send frame to frame handler");
-            } //log::error!("Failed to send frame: {}", e),
         }
     }
 
-    // stop acquisition
-    buffer.stop_acquisition()?;
-
-    // send kill signal to writer thread
-    match sender.send((
-        Arc::new(ImageData::default()),
-        MessageType::Text("kill".to_string()),
-    )) {
-        Ok(_) => {
-            log::info!("Sent kill message to frame handler");
-        }
-        Err(_e) => {
-            log::error!("Failed to send kill trigger to frame handler.")
-        }
-    }
-
-    // stop frame handler
-    frame_handler_thread.join().unwrap();
-    subscriber_thread.join().unwrap();
+    // Stop acquisition
+    camera.stop_acquisition()?;
+    info!("Acquisition stopped, application shutting down");
 
     Ok(())
 }
