@@ -17,7 +17,7 @@ use std::{
 };
 
 fn save_video_metadata(images: &VecDeque<Arc<ImageData>>, save_path: &Path) -> Result<()> {
-    log::info!("Saving metadata to disk");
+    log::debug!("Saving metadata to disk");
 
     let mut save_path_str = save_path.to_string_lossy().to_string();
     save_path_str.push_str(".csv");
@@ -60,7 +60,7 @@ fn video_writer(rx: Receiver<FramesPacket>) -> Result<()> {
             .context("Failed to convert path to string")?
             .to_string();
 
-        log::info!("Starting ffmpeg command to save video to {}", save_path_str);
+        log::debug!("Starting ffmpeg command to save video to {}", save_path_str);
 
         let mut ffmpeg_command = Command::new("ffmpeg")
             .args([
@@ -100,7 +100,7 @@ fn video_writer(rx: Receiver<FramesPacket>) -> Result<()> {
         }
 
         let ffmpeg_status = ffmpeg_command.wait()?;
-        log::info!("ffmpeg command finished with status: {:?}", ffmpeg_status);
+        log::debug!("ffmpeg command finished with status: {:?}", ffmpeg_status);
     }
 
     Ok(())

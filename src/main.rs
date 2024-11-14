@@ -50,7 +50,7 @@ fn main() -> Result<(), i32> {
     );
 
     // Connect to ZMQ; return error if connection fails
-    log::info!("Connecting to ZMQ server at {}", args.sub_port);
+    log::debug!("Connecting to ZMQ server at {}", args.sub_port);
 
     // Connect to ZMQ subscriber
     let subscriber = connect_to_socket(&args.sub_port, zmq::SUB);

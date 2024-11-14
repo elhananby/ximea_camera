@@ -42,7 +42,7 @@ pub fn subscribe_to_messages(subscriber: zmq::Socket, msg_sender: channel::Sende
                     if parts.len() == 2 {
                         let topic = parts[0];
                         let message = parts[1];
-                        log::info!("Received message: {:?} {:?}", topic, message);
+                        log::debug!("Received message: {:?} {:?}", topic, message);
                         Some(message.to_string())
                     } else {
                         log::warn!("Received message with no topic: {:?}", full_message);
