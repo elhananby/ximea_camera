@@ -22,8 +22,8 @@ This Rust project provides a robust system for camera control, image acquisition
 
 1. Clone the repository:
    ```
-   git clone [your-repo-url]
-   cd [your-repo-name]
+   git clone [[your-repo-url]](https://github.com/elhananby/ximea_camera)
+   cd ximea_camera
    ```
 
 2. Build the project:
